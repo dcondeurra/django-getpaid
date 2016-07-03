@@ -1,4 +1,5 @@
 import os
+import sys
 import glob
 import datetime
 import urllib
@@ -13,6 +14,7 @@ from django.conf import settings
 from django.core.urlresolvers import reverse
 from django.utils.translation import ugettext_lazy as _
 from getpaid.backends import PaymentProcessorBase
+from django.contrib.sites.shortcuts import get_current_site
 
 
 TBK_PUBLIC_KEY = """
@@ -164,13 +166,13 @@ class PaymentProcessor(PaymentProcessorBase):
     PRIVADA_PEM = PRIVADA_PEM
 
     @classmethod
-    def get_tbk_config(cls, payment_pk, currency='CLP'):
-        domain = getattr(settings, 'SITE_URL', 'http://127.0.0.1:8000')
+    def get_tbk_config(cls, request, payment_pk, currency='CLP'):
+        domain = get_current_site(request)
         conf = OrderedDict((('IDCOMERCIO', None),
                             ('MEDCOM', '1'),
                             ('TBK_KEY_ID', '101'),
                             ('PARAMVERIFCOM', '1'),
-                            ('URLCGICOM', "%s%s" % (domain, reverse('getpaid-webpay-resultado', args=[payment_pk]))),
+                            ('URLCGICOM', "http://%s%s" % (domain, reverse('getpaid:webpay:webpay-resultado', args=[payment_pk]))),
                             ('SERVERCOM', cls.get_backend_setting('STATIC_INBOUND_IP')),
                             ('PORTCOM', '80'),
                             ('WHITELISTCOM', 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz 0123456789./:=&?_'),
@@ -181,7 +183,7 @@ class PaymentProcessor(PaymentProcessorBase):
                             ('SERVERTRA', 'https://certificacion.webpay.cl'),
                             ('PORTTRA', '6443'),
                             ('PREFIJO_CONF_TR', 'HTML_'),
-                            ('HTML_TR_NORMAL', "%s%s" % (domain, reverse('getpaid-webpay-close')))))
+                            ('HTML_TR_NORMAL', "http://%s%s" % (domain, reverse('getpaid:webpay:webpay-purchase')))))
 
         certified = cls.get_backend_setting('CERTIFIED', False)
         if certified:
@@ -254,16 +256,18 @@ class PaymentProcessor(PaymentProcessorBase):
         auto-submits to ``pago`` url.
         """
         order = self.payment.order
-        base_url = settings.SITE_URL
+        base_url = get_current_site(request)
 
-        tbk_params = {'TBK_MONTO': str(order.total) + '00',
-                      'TBK_TIPO_TRANSACCION': 'TR_NORMAL',
-                      'TBK_ORDEN_COMPRA': order.pk,
-                      'TBK_ID_SESION': self.payment.pk,
-                      'TBK_URL_EXITO': base_url + reverse('getpaid-webpay-success'),
-                      'TBK_URL_FRACASO': base_url + reverse('getpaid-webpay-failure')}
+        tbk_params = {
+            'TBK_MONTO': str(order.total) + '00',
+            'TBK_TIPO_TRANSACCION': 'TR_NORMAL',
+            'TBK_ORDEN_COMPRA': order.pk,
+            'TBK_ID_SESION': self.payment.pk,
+            'TBK_URL_EXITO': 'http://%s%s' % (base_url, reverse('getpaid:webpay:webpay-success')),
+            'TBK_URL_FRACASO': 'http://%s%s' % (base_url, reverse('getpaid:webpay:webpay-failure'))
+        }
 
-        return reverse('getpaid-webpay-pago', kwargs={'pk': self.payment.pk}), "POST", tbk_params
+        return reverse('getpaid:webpay:webpay-pago', kwargs={'pk': self.payment.pk}), "POST", tbk_params
 
 
 @contextmanager
@@ -292,45 +296,45 @@ def webpay_run(name, payment_pk, *args, **kwargs):
     from pprint import pprint
 
     # prepare the configuration files
-    assets_dir = PaymentProcessor.get_backend_setting('ASSETS_DIR')
-    tbk_config = PaymentProcessor.get_tbk_config(payment_pk, 'CLP')  # FIXME
+    assets_dir = PaymentProcessor.get_backend_setting('WEBPAY_DOCS')
+    tbk_config = PaymentProcessor.get_tbk_config(kwargs.get('request'), payment_pk, 'CLP')  # FIXME
     tbk_param = PaymentProcessor.get_tbk_param()
     tbk_trace = PaymentProcessor.get_tbk_trace()
 
-    temp_dir = mkdtemp()
+    # temp_dir = mkdtemp()
     cgi_path = os.path.join(assets_dir, name)
-    temp_cgi_path = os.path.join(temp_dir, name)
-    datos_path = os.path.join(temp_dir, 'datos')
+    # temp_cgi_path = os.path.join(assets_dir, name)
+    datos_path = os.path.join(assets_dir, 'datos')
 
-    os.mkdir(datos_path)
-    with open(os.path.join(datos_path, 'tbk_config.dat'), 'w') as f:
-        pprint("TBK_CONFIG: %s" % tbk_config)
-        pprint('------------------------------------------')
-        f.write(tbk_config)
-    with open(os.path.join(datos_path, 'tbk_param.txt'), 'w') as f:
-        f.write(tbk_param)
-    with open(os.path.join(datos_path, 'tbk_trace.dat'), 'w') as f:
-        f.write(tbk_trace)
+    # os.mkdir(datos_path)
+    # with open(os.path.join(datos_path, 'tbk_config.dat'), 'w') as f:
+    #     pprint("TBK_CONFIG: %s" % tbk_config)
+    #     pprint('------------------------------------------')
+    #     f.write(tbk_config)
+    # with open(os.path.join(datos_path, 'tbk_param.txt'), 'w') as f:
+    #     f.write(tbk_param)
+    # with open(os.path.join(datos_path, 'tbk_trace.dat'), 'w') as f:
+    #     f.write(tbk_trace)
 
     # prepare the public and private keys
-    maestros_path = os.path.join(temp_dir, 'maestros')
+    maestros_path = os.path.join(assets_dir, 'maestros')
     public_key, private_key = PaymentProcessor.get_keys()
 
-    os.mkdir(maestros_path)
-    with open(os.path.join(maestros_path, 'tbk_public_key.pem'), 'w') as f:
-        f.write(public_key)
-    with open(os.path.join(maestros_path, 'privada.pem'), 'w') as f:
-        f.write(private_key)
+    # os.mkdir(maestros_path)
+    # with open(os.path.join(maestros_path, 'tbk_public_key.pem'), 'w') as f:
+    #     f.write(public_key)
+    # with open(os.path.join(maestros_path, 'privada.pem'), 'w') as f:
+    #     f.write(private_key)
 
     # prepare the log directory
-    log_path = os.path.join(temp_dir, 'log')
-    os.mkdir(log_path)
+    log_path = os.path.join(assets_dir, 'log')
+    # os.mkdir(log_path)
 
     # copy the binary to the temp dir and make it executable
-    copyfile(cgi_path, temp_cgi_path)
-    os.chmod(temp_cgi_path, S_IEXEC)
+    # copyfile(cgi_path, temp_cgi_path)
+    # os.chmod(cgi_path, S_IEXEC)
 
-    yield Popen([temp_cgi_path] + list(args), stdin=PIPE, stdout=PIPE)
+    yield Popen([sys.executable, cgi_path] + list(args), stdin=PIPE, stdout=PIPE)
 
     # capture the logs
     try:
@@ -362,4 +366,4 @@ def webpay_run(name, payment_pk, *args, **kwargs):
         pass
 
     # clean up
-    rmtree(temp_dir)
+    # rmtree(temp_dir)
