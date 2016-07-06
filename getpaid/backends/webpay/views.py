@@ -1,25 +1,40 @@
 # coding: utf-8
 
-from django.conf import settings
 from django.http import HttpResponse
 from django.shortcuts import render, redirect
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 from getpaid.models import Payment
 from . import PaymentProcessor, webpay_run
-
+from settings import KCC_TBK_PAGO_URL
+import requests
 
 @require_POST
 @csrf_exempt
 def pago(request, pk):
-    with webpay_run('tbk_bp_pago.cgi', pk) as cgi:
-        params = request.body + "\n"
-        output, _ = cgi.communicate(params)
-        _, body = output.split("\n\n")
-        return HttpResponse(body)
+
+    url = KCC_TBK_PAGO_URL
+    data = {}
+    for item, value in request.POST.iteritems():
+        data.update({item: value})
+
+    response = requests.post(url, data=data, headers={'Accept-encoding': 'html'})
+
+    if response.status_code == 200:
+        return HttpResponse(response.content)
+    else:
+        Payment.objects.delete(pk=pk)
+        raise ValueError('Codigo HTTP %s desde Webpay. Datos enviados: %s' % (response.status_code, tbk_data))
+
+    #
+    # with webpay_run('tbk_bp_pago.cgi', pk, **{'request': request}) as cgi:
+    #     params = request.body + "\n"
+    #     output, _ = cgi.communicate(params)
+    #     _, body = output.split("\n\n")
+    #     return HttpResponse(body)
 
 
-@require_POST
+# @require_POST
 @csrf_exempt
 def resultado(request, pk):
     with webpay_run('tbk_bp_resultado.cgi', pk) as cgi:
@@ -75,11 +90,12 @@ def close(request):
 @require_POST
 @csrf_exempt
 def success(request):
+    site = get_current_site(request)
     payment_pk = request.POST.get('TBK_ID_SESION')
     try:
         payment = Payment.objects.get(pk=payment_pk, paid_on__isnull=False)
     except (Payment.DoesNotExist, ValueError):
-        return redirect('getpaid-webpay-failure')
+        return redirect('getpaid:webpay-failure')
     order = payment.order
     params = payment.journalentry_set.latest('date').params
 
@@ -97,7 +113,7 @@ def success(request):
 
     context = {'payment_items': order.items,
                'order': payment.order,
-               'site_url': settings.SITE_URL,
+               'site_url': 'http://%s/' % site,
                'customer_name': order.customer_name,
                'order_id': order.pk,
                'payment_type': PAYMENT_TYPE_DESCRIPTIONS[params['TBK_TIPO_PAGO']],
