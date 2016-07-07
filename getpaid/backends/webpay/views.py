@@ -123,7 +123,7 @@ def failure(request):
     TBK_ORDEN_COMPRA = Order PK
 
     """
-    order_id = int(request.POST.get('TBK_ORDEN_COMPRA'))
-    order = get_object_or_404(Order, order_id)
+    order_id = request.POST.get('TBK_ORDEN_COMPRA')
+    order = get_object_or_404(Order, pk=order_id)
     context = {'object': order}
     return render(request, 'getpaid/failure.html', context)
