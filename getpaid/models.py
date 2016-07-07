@@ -38,7 +38,7 @@ class PaymentFactory(models.Model, AbstractMixin):
     This is an abstract class that defines a structure of Payment model that will be
     generated dynamically with one additional field: ``order``
     """
-    amount = models.DecimalField(_("amount"), decimal_places=4, max_digits=20)
+    amount = models.DecimalField(_("amount"), decimal_places=2, max_digits=10)
     currency = models.CharField(_("currency"), max_length=3)
     status = models.CharField(_("status"), max_length=20, choices=PAYMENT_STATUS_CHOICES, default='new', db_index=True)
     backend = models.CharField(_("backend"), max_length=50)

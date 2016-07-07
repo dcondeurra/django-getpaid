@@ -42,45 +42,35 @@ def resultado(request, pk):
 
 @require_POST
 @csrf_exempt
-def close(request):
+def webpay_confirmation(request):
     answer = request.POST.get('TBK_RESPUESTA', None)
 
-    try:
-        payment_pk = int(request.POST['TBK_ID_SESION'])
-    except:
-        if (answer == u'0'):
-            return HttpResponse('RECHAZADO')
-        else:
-            return HttpResponse('ACEPTADO')
-
-    # AQUI SE VALIDA LA ORDEN DE COMPRA
-    # Check if 'orden de compra' was already paid in another Payment before
-    order_id = int(request.POST['TBK_ORDEN_COMPRA'])
-    previous_payments = Payment.objects.filter(order__id=order_id, status='paid', backend='getpaid.backends.webpay')
-    if previous_payments:
+    # Check if Transaction autorized by webpay
+    if answer != '0':
+        logger.warning('La Orden de compra #%s ha sido rechazada por webpay.' % order_pk, exc_info=True)
         return HttpResponse('RECHAZADO')
 
-    try:
-        payment = Payment.objects.get(pk=payment_pk,
-                                      status='in_progress',
-                                      backend='getpaid.backends.webpay')
-    except Payment.DoesNotExist:
-        if (answer == u'0'):
-            return HttpResponse('RECHAZADO')
-        else:
-            return HttpResponse('ACEPTADO')
-
-    if (answer == u'0'):
-        # LLAMADA A METODO PARA VALIDAR MONTO Y MAC
-        if PaymentProcessor.validate(payment, request):
-            payment.on_success()
-            return HttpResponse('ACEPTADO')
-        else:
-            payment.on_failure()
-            return HttpResponse('RECHAZADO')
-    else:
+    # Check mac validation
+    if not PaymentProcessor.validate(payment, request):
         payment.on_failure()
-        return HttpResponse('ACEPTADO')
+        return HttpResponse('RECHAZADO')
+
+    # Check if Order was already paid in another Payment before
+    order_pk = int(request.POST['TBK_ORDEN_COMPRA'])
+    previous_payments = Payment.objects.filter(order__pk=order_pk, status='paid', backend=PaymentProcessor.BACKEND)
+    if previous_payments:
+        logger.warning('La Orden de compra #%s ya ha sido pagada.' % order_pk, exc_info=True)
+        return HttpResponse('RECHAZADO')
+
+    # Check if Order have an a Payment
+    try:
+        payment_pk = int(request.POST['TBK_ID_SESION'])
+        payment = Payment.objects.get(pk=payment_pk, status='in_progress', backend=PaymentProcessor.BACKEND)
+        payment.on_success()
+    except Payment.DoesNotExist:
+        logger.warning('La Orden de compra #%s no tiene pago asociado con #%s.' % (order_pk, payment_pk), exc_info=True)
+
+    return HttpResponse('ACEPTADO')
 
 
 @require_POST

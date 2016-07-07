@@ -233,9 +233,7 @@ class PaymentProcessor(PaymentProcessorBase):
         # ESTAS TRES LINEAS VERIFICAN QUE EL MONTO REGISTRADO AL INICIAR EL
         # PROCESO DE COMPRA EN LA ORDEN (OBJETO 'payment') ES IGUAL AL RECIBIDO
         # DESPUES DE PASAR POR TRANSBANK (EN EL PARAMETRO 'TBK_MONTO')
-        amount = str(int(payment.amount)) + '00'
-        tbk_amount = request.POST.get('TBK_MONTO', None)
-        same_amount = amount == tbk_amount
+
 
         temp_fd, temp_file = mkstemp()
 
@@ -251,6 +249,25 @@ class PaymentProcessor(PaymentProcessorBase):
 
         return same_amount and valid_mac and not payment.paid_on
 
+        # Haciendo la verficacion del MAC
+        KCC_DATA_FILE_TO_CHECK = settings.KCC_LOG_DIR + "DataToCheck_" + order_num + ".dat"
+        # Creando el fichero para verficacion del MAC
+        val_str = tbk_data.validation_str()
+        f = open(KCC_DATA_FILE_TO_CHECK, 'w')
+        f.write(val_str)
+        f.flush()
+        f.close()
+        # Ejecutando la verificacion
+        result = subprocess.check_output([settings.KCC_CHECK_MAC_EXEC, KCC_DATA_FILE_TO_CHECK])
+        if not result.startswith('CORRECTO'):
+            logger.error('Error en MAC de la orden: %s' % order_num)
+            logger.info("Parametros recibidos: %s" % request.POST)
+            logger.info("Cadena de validacion generada: %s" % val_str)
+            logger.info('Resultado de la comprobacion: %s' % result)
+            return HttpResponse(WEBPAY_CHECK_RECHAZADO)
+        else:
+            logger.debug("Comprobacion exitosa del MAC")
+
     def get_gateway_url(self, request):
         """Returns the url the user will be redirected to.
         Webpay requires that the request to ``pago`` url must be via POST.
@@ -264,8 +281,8 @@ class PaymentProcessor(PaymentProcessorBase):
             'TBK_MONTO': order.amount.to_eng_string(),
             'TBK_TIPO_TRANSACCION': 'TR_NORMAL',
             'TBK_ORDEN_COMPRA': order.pk,
-            'TBK_ID_SESION': request.session.session_key,
-            # 'TBK_ID_SESION': self.payment.pk,
+            # 'TBK_ID_SESION': request.session.session_key,
+            'TBK_ID_SESION': self.payment.pk,
             'TBK_URL_EXITO': 'http://%s%s' % (base_url, reverse('getpaid:webpay_success')),
             'TBK_URL_FRACASO': 'http://%s%s' % (base_url, reverse('getpaid:webpay_failure'))
         }
