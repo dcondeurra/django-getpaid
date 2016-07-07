@@ -264,7 +264,8 @@ class PaymentProcessor(PaymentProcessorBase):
             'TBK_MONTO': order.amount.to_eng_string(),
             'TBK_TIPO_TRANSACCION': 'TR_NORMAL',
             'TBK_ORDEN_COMPRA': order.pk,
-            'TBK_ID_SESION': self.payment.pk,
+            'TBK_ID_SESION': request.session.session_key,
+            # 'TBK_ID_SESION': self.payment.pk,
             'TBK_URL_EXITO': 'http://%s%s' % (base_url, reverse('getpaid:webpay_success')),
             'TBK_URL_FRACASO': 'http://%s%s' % (base_url, reverse('getpaid:webpay_failure'))
         }

@@ -8,6 +8,9 @@ from getpaid.models import Payment
 from . import PaymentProcessor, webpay_run
 from settings import KCC_TBK_PAGO_URL
 import requests
+import logging
+
+logger = logging.getLogger(__name__)
 
 @require_POST
 @csrf_exempt
@@ -24,15 +27,8 @@ def pago(request, pk):
         return HttpResponse(response.content)
     else:
         Payment.objects.delete(pk=pk)
-        raise ValueError('Codigo HTTP %s desde Webpay. Datos enviados: %s' % (response.status_code, tbk_data))
-
-    #
-    # with webpay_run('tbk_bp_pago.cgi', pk, **{'request': request}) as cgi:
-    #     params = request.body + "\n"
-    #     output, _ = cgi.communicate(params)
-    #     _, body = output.split("\n\n")
-    #     return HttpResponse(body)
-
+        logger.error(
+            'Código %s enviado desde webpay por la petición al método pago.' % response.status_code, exc_info=True)
 
 # @require_POST
 @csrf_exempt
