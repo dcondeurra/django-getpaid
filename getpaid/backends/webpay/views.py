@@ -44,6 +44,7 @@ def resultado(request, pk):
 @csrf_exempt
 def webpay_confirmation(request):
     answer = request.POST.get('TBK_RESPUESTA', None)
+    order_pk = int(request.POST['TBK_ORDEN_COMPRA'])
 
     # Check if Transaction autorized by webpay
     if answer != '0':
@@ -56,7 +57,7 @@ def webpay_confirmation(request):
         return HttpResponse('RECHAZADO')
 
     # Check if Order was already paid in another Payment before
-    order_pk = int(request.POST['TBK_ORDEN_COMPRA'])
+
     previous_payments = Payment.objects.filter(order__pk=order_pk, status='paid', backend=PaymentProcessor.BACKEND)
     if previous_payments:
         logger.warning('La Orden de compra #%s ya ha sido pagada.' % order_pk, exc_info=True)
@@ -112,7 +113,10 @@ def success(request):
     return render(request, 'getpaid/success.html', context)
 
 
+# @require_POST
 @csrf_exempt
 def failure(request):
-    context = {'order_id': request.POST.get('TBK_ORDEN_COMPRA')}
+    order_id = request.POST.get('TBK_ORDEN_COMPRA')
+    order = get_object_or_404(Order, order_id)
+    context = {'object': order}
     return render(request, 'getpaid/failure.html', context)
