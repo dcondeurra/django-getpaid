@@ -44,8 +44,8 @@ def resultado(request, pk):
 @csrf_exempt
 def webpay_confirmation(request):
     answer = request.POST.get('TBK_RESPUESTA', None)
-    order_pk = request.POST['TBK_ORDEN_COMPRA']
-    payment_pk = request.POST['TBK_SESION']
+    order_pk = int(request.POST['TBK_ORDEN_COMPRA'])
+    payment_pk = int(request.POST['TBK_SESION'])
 
     # Check if Transaction autorized by webpay
     if answer != '0':
@@ -123,7 +123,7 @@ def failure(request):
     TBK_ORDEN_COMPRA = Order PK
 
     """
-    order_id = request.POST.get('TBK_ORDEN_COMPRA')
+    order_id = int(request.POST.get('TBK_ORDEN_COMPRA'))
     order = get_object_or_404(Order, order_id)
     context = {'object': order}
     return render(request, 'getpaid/failure.html', context)
