@@ -1,10 +1,10 @@
 # coding: utf-8
-
+from django.contrib.sites.shortcuts import get_current_site
 from django.http import HttpResponse
-from django.shortcuts import render, redirect
+from django.shortcuts import render, redirect, get_object_or_404
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
-from getpaid.models import Payment
+from getpaid.models import Payment, Order
 from . import PaymentProcessor, webpay_run
 from settings import KCC_TBK_PAGO_URL
 import requests
@@ -44,7 +44,8 @@ def resultado(request, pk):
 @csrf_exempt
 def webpay_confirmation(request):
     answer = request.POST.get('TBK_RESPUESTA', None)
-    order_pk = int(request.POST['TBK_ORDEN_COMPRA'])
+    order_pk = request.POST['TBK_ORDEN_COMPRA']
+    payment_pk = request.POST['TBK_SESION']
 
     # Check if Transaction autorized by webpay
     if answer != '0':
@@ -52,9 +53,9 @@ def webpay_confirmation(request):
         return HttpResponse('RECHAZADO')
 
     # Check mac validation
-    if not PaymentProcessor.validate(payment, request):
-        payment.on_failure()
-        return HttpResponse('RECHAZADO')
+    # if not PaymentProcessor.validate(payment, request):
+    #     payment.on_failure()
+    #     return HttpResponse('RECHAZADO')
 
     # Check if Order was already paid in another Payment before
 
@@ -65,7 +66,6 @@ def webpay_confirmation(request):
 
     # Check if Order have an a Payment
     try:
-        payment_pk = int(request.POST['TBK_ID_SESION'])
         payment = Payment.objects.get(pk=payment_pk, status='in_progress', backend=PaymentProcessor.BACKEND)
         payment.on_success()
     except Payment.DoesNotExist:
@@ -116,6 +116,13 @@ def success(request):
 # @require_POST
 @csrf_exempt
 def failure(request):
+    """
+    Method that used for get a failure redirect from webpay.
+
+    TBK_ID_SESION = Payment PK
+    TBK_ORDEN_COMPRA = Order PK
+
+    """
     order_id = request.POST.get('TBK_ORDEN_COMPRA')
     order = get_object_or_404(Order, order_id)
     context = {'object': order}

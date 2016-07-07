@@ -13,7 +13,7 @@ USD_TO_CLP_EXCHANGE = 700
 AMOUNT_ORDER_CHARGE = 3000
 DEFAULT_CURRENCY = 'CLP'
 
-KCC_TBK_PAGO_URL = 'http://localhost:5000/webpay/cgi-bin/tbk_bp_pago.cgi'
+KCC_TBK_PAGO_URL = 'http://payments.pre.mercadodelfrutero.cl/webpay/cgi-bin/tbk_bp_pago.cgi'
 KCC_WORKING_DIR = '/var/www/webpay/cgi-bin/'
 KCC_LOG_DIR = '/var/www/webpay/cgi-bin/log/'
 KCC_CHECK_MAC_EXEC = '/var/www/webpay/cgi-bin/tbk_check_mac.cgi'
