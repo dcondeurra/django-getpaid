@@ -21,16 +21,16 @@ urlpatterns = [
     url(
         r'^new/payment/(?P<currency>[A-Z]{3})/$',
         NewPaymentView.as_view(),
-        name='new-payment'
+        name='new_payment'
     ),
     url(
         r'^payment/success/(?P<pk>\d+)/$',
         FallbackView.as_view(success=True),
-        name='success-fallback'
+        name='success_fallback'
     ),
     url(
         r'^payment/failure/(?P<pk>\d+)$',
         FallbackView.as_view(success=False),
-        name='failure-fallback'
+        name='failure_fallback'
     ),
 ] + includes_list
