@@ -78,7 +78,7 @@ def webpay_confirmation(request):
 @csrf_exempt
 def success(request):
     site = get_current_site(request)
-    payment_pk = request.POST.get('TBK_ID_SESION')
+    session_key = request.POST.get('TBK_ID_SESION')
     try:
         payment = Payment.objects.get(pk=payment_pk, paid_on__isnull=False)
     except (Payment.DoesNotExist, ValueError):
@@ -113,13 +113,13 @@ def success(request):
     return render(request, 'getpaid/success.html', context)
 
 
-# @require_POST
+@require_POST
 @csrf_exempt
 def failure(request):
     """
     Method that used for get a failure redirect from webpay.
 
-    TBK_ID_SESION = Payment PK
+    TBK_ID_SESION = Session id
     TBK_ORDEN_COMPRA = Order PK
 
     """
