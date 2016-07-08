@@ -115,9 +115,9 @@ def success(request):
 
 @require_POST
 @csrf_exempt
-def failure(request):
+def reject(request):
     """
-    Method that used for get a failure redirect from webpay.
+    Method that used for reject pay from webpay.
 
     TBK_ID_SESION = Session id
     TBK_ORDEN_COMPRA = Order PK
@@ -126,4 +126,12 @@ def failure(request):
     order_id = request.POST.get('TBK_ORDEN_COMPRA')
     order = get_object_or_404(Order, pk=order_id)
     context = {'object': order}
-    return render(request, 'getpaid/failure.html', context)
+    return render(request, 'getpaid/reject.html', context)
+
+
+def failure(request):
+    """
+    Method that used for get a failure from webpay.
+
+    """
+    return render(request, 'getpaid/failure.html')

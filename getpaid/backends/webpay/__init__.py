@@ -284,7 +284,7 @@ class PaymentProcessor(PaymentProcessorBase):
             'TBK_ID_SESION': request.session.session_key,
             # 'TBK_ID_SESION': self.payment.pk,
             'TBK_URL_EXITO': 'http://%s%s' % (base_url, reverse('getpaid:webpay_success')),
-            'TBK_URL_FRACASO': 'http://%s%s' % (base_url, reverse('getpaid:webpay_failure'))
+            'TBK_URL_FRACASO': 'http://%s%s' % (base_url, reverse('getpaid:webpay_reject'))
         }
 
         return reverse('getpaid:webpay_pago', kwargs={'pk': self.payment.pk}), "POST", tbk_params
