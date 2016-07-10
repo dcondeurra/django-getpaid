@@ -26,7 +26,7 @@ def pago(request, pk):
     if response.status_code == 200:
         return HttpResponse(response.content)
     else:
-        Payment.objects.delete(pk=pk)
+        Payment.objects.get(pk=pk).delete()
         logger.error(
             'Código %s enviado desde webpay por la petición al método pago.' % response.status_code, exc_info=True)
 
