@@ -275,7 +275,6 @@ class PaymentProcessor(PaymentProcessorBase):
         auto-submits to ``pago`` url.
         """
         order = self.payment.order
-        base_url = get_current_site(request)
 
         tbk_params = {
             'TBK_MONTO': order.amount.to_eng_string(),
@@ -283,8 +282,8 @@ class PaymentProcessor(PaymentProcessorBase):
             'TBK_ORDEN_COMPRA': order.pk,
             'TBK_ID_SESION': request.session.session_key,
             # 'TBK_ID_SESION': self.payment.pk,
-            'TBK_URL_EXITO': 'http://%s%s' % (base_url, reverse('getpaid:webpay_success')),
-            'TBK_URL_FRACASO': 'http://%s%s' % (base_url, reverse('getpaid:webpay_reject'))
+            'TBK_URL_EXITO': request.build_absolute_uri(reverse('getpaid:webpay_success')),
+            'TBK_URL_FRACASO': request.build_absolute_uri(reverse('getpaid:webpay_reject'))
         }
 
         return reverse('getpaid:webpay_pago', kwargs={'pk': self.payment.pk}), "POST", tbk_params
